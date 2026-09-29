@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="IPD Rounds">
+<title>IPD Round Tracker</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#667085;--line:#e6e9ef;--accent:#1769ff;--green:#12805c;--red:#d92d20;--orange:#b54708}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;color:var(--text);padding-bottom:30px}
+header{background:#fff;padding:calc(env(safe-area-inset-top) + 18px) 18px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+h1{font-size:25px;margin:0 0 4px}.sub{color:var(--muted);font-size:14px}
+.container{max-width:700px;margin:auto;padding:16px}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}.tab{border:0;border-radius:12px;padding:11px 5px;background:#e9edf5;color:#475467;font-weight:700}.tab.active{background:var(--accent);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px #00000008}
+.roundTitle{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}.roundTitle h2{margin:0;font-size:20px}.badge{font-size:12px;padding:6px 9px;border-radius:20px;background:#e9f7f1;color:var(--green);font-weight:700}
+.date{color:var(--muted);font-size:14px;margin-bottom:14px}
+.patient{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}.patient:last-child{border-bottom:0}
+.name{flex:1;font-size:17px;font-weight:600}.mini{font-size:12px;color:var(--muted)}
+.btn{border:0;border-radius:11px;padding:10px 13px;font-weight:700;font-size:14px}.primary{background:var(--accent);color:#fff}.secondary{background:#eef2f7;color:#344054}.danger{background:#feeceb;color:var(--red)}.success{background:#e8f7f0;color:var(--green)}
+.big{width:100%;padding:15px;font-size:16px;margin-top:14px}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#f8fafc;border-radius:12px;padding:12px}.stat b{display:block;font-size:19px;margin-top:3px}.stat span{font-size:12px;color:var(--muted)}
+input{width:100%;padding:13px;border:1px solid #d0d5dd;border-radius:11px;font-size:16px;background:#fff}form{display:flex;gap:8px}form input{flex:1}
+.empty{text-align:center;color:var(--muted);padding:25px 5px}.row{display:flex;gap:8px;align-items:center;justify-content:space-between}.sectionTitle{font-size:14px;font-weight:800;color:#475467;text-transform:uppercase;letter-spacing:.05em;margin:20px 2px 8px}
+.paymentRow{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}.paymentRow:last-child{border-bottom:0}
+small{color:var(--muted)}
+.toast{position:fixed;left:16px;right:16px;bottom:20px;background:#172033;color:#fff;padding:13px 16px;border-radius:12px;text-align:center;display:none;z-index:20}
+</style>
+</head>
+<body>
+<header><h1>🏥 IPD Round Tracker</h1><div class="sub">৳1,000 per patient per completed round</div></header>
+<div class="container">
+<div class="card" style="margin-top:14px"><b>History loaded:</b> 26–29 Sep 2026. Current round: 29 Sep Night.</div>
+<div class="tabs">
+<button class="tab active" onclick="showTab('round')">Current Round</button>
+<button class="tab" onclick="showTab('patients')">Patients</button>
+<button class="tab" onclick="showTab('payments')">Payments</button>
+</div>
+<div id="round"></div><div id="patients" style="display:none"></div><div id="payments" style="display:none"></div>
+</div>
+<div id="toast" class="toast"></div>
+<script>
+const FEE=1000;
+const KEY='ipd_round_tracker_v1';
+let db=JSON.parse(localStorage.getItem(KEY)||'null');
+const PRELOADED={"patients":[{"id":"3000","name":"Munni","admitted":"2026-09-26","discharged":false,"dischargeDate":null},{"id":"3001","name":"Asif Shajid","admitted":"2026-09-26","discharged":true,"dischargeDate":"2026-09-28"},{"id":"3002","name":"Khaleda","admitted":"2026-09-27","discharged":true,"dischargeDate":"2026-09-28"},{"id":"3003","name":"Al Amin","admitted":"2026-09-27","discharged":false,"dischargeDate":null},{"id":"3004","name":"Siraj","admitted":"2026-09-27","discharged":false,"dischargeDate":null},{"id":"3005","name":"Abu Jat","admitted":"2026-09-28","discharged":false,"dischargeDate":null},{"id":"3006","name":"Shalu","admitted":"2026-09-28","discharged":false,"dischargeDate":null},{"id":"3007","name":"Sumon","admitted":"2026-09-29","discharged":false,"dischargeDate":null},{"id":"3008","name":"Humaira","admitted":"2026-09-29","discharged":false,"dischargeDate":null},{"id":"3009","name":"Sumi","admitted":"2026-09-29","discharged":false,"dischargeDate":null}],"rounds":[{"id":1,"patientId":"3000","date":"2026-09-26","type":"Night"},{"id":2,"patientId":"3001","date":"2026-09-26","type":"Night"},{"id":3,"patientId":"3002","date":"2026-09-27","type":"Morning"},{"id":4,"patientId":"3000","date":"2026-09-27","type":"Morning"},{"id":5,"patientId":"3001","date":"2026-09-27","type":"Morning"},{"id":6,"patientId":"3003","date":"2026-09-27","type":"Morning"},{"id":7,"patientId":"3002","date":"2026-09-27","type":"Night"},{"id":8,"patientId":"3000","date":"2026-09-27","type":"Night"},{"id":9,"patientId":"3001","date":"2026-09-27","type":"Night"},{"id":10,"patientId":"3003","date":"2026-09-27","type":"Night"},{"id":11,"patientId":"3004","date":"2026-09-27","type":"Night"},{"id":12,"patientId":"3002","date":"2026-09-28","type":"Morning"},{"id":13,"patientId":"3000","date":"2026-09-28","type":"Morning"},{"id":14,"patientId":"3001","date":"2026-09-28","type":"Morning"},{"id":15,"patientId":"3003","date":"2026-09-28","type":"Morning"},{"id":16,"patientId":"3004","date":"2026-09-28","type":"Morning"},{"id":17,"patientId":"3005","date":"2026-09-28","type":"Morning"},{"id":18,"patientId":"3006","date":"2026-09-28","type":"Morning"},{"id":19,"patientId":"3000","date":"2026-09-28","type":"Night"},{"id":20,"patientId":"3003","date":"2026-09-28","type":"Night"},{"id":21,"patientId":"3004","date":"2026-09-28","type":"Night"},{"id":22,"patientId":"3005","date":"2026-09-28","type":"Night"},{"id":23,"patientId":"3006","date":"2026-09-28","type":"Night"},{"id":24,"patientId":"3000","date":"2026-09-29","type":"Morning"},{"id":25,"patientId":"3003","date":"2026-09-29","type":"Morning"},{"id":26,"patientId":"3004","date":"2026-09-29","type":"Morning"},{"id":27,"patientId":"3005","date":"2026-09-29","type":"Morning"},{"id":28,"patientId":"3006","date":"2026-09-29","type":"Morning"},{"id":29,"patientId":"3007","date":"2026-09-29","type":"Morning"},{"id":30,"patientId":"3008","date":"2026-09-29","type":"Morning"},{"id":31,"patientId":"3000","date":"2026-09-29","type":"Night"},{"id":32,"patientId":"3003","date":"2026-09-29","type":"Night"},{"id":33,"patientId":"3004","date":"2026-09-29","type":"Night"},{"id":34,"patientId":"3005","date":"2026-09-29","type":"Night"},{"id":35,"patientId":"3006","date":"2026-09-29","type":"Night"},{"id":36,"patientId":"3007","date":"2026-09-29","type":"Night"},{"id":37,"patientId":"3008","date":"2026-09-29","type":"Night"},{"id":38,"patientId":"3009","date":"2026-09-29","type":"Night"}],"current":{"type":"Night","date":"2026-09-29"},"payments":{}};
+if(!db && !localStorage.getItem('ipd_preloaded_v4')){db=PRELOADED;localStorage.setItem(KEY,JSON.stringify(db));localStorage.setItem('ipd_preloaded_v4','1');}
+const PRELOADED={"patients":[{"id":"1001","name":"Munni","admitted":"2026-09-26","discharged":false,"dischargeDate":null},{"id":"1002","name":"Asif Shajid","admitted":"2026-09-26","discharged":true,"dischargeDate":"2026-09-28"},{"id":"1003","name":"Khaleda","admitted":"2026-09-27","discharged":true,"dischargeDate":"2026-09-28"},{"id":"1004","name":"Al Amin","admitted":"2026-09-27","discharged":false,"dischargeDate":null},{"id":"1005","name":"Chacha","admitted":"2026-09-27","discharged":false,"dischargeDate":null},{"id":"1006","name":"Nurse","admitted":"2026-09-28","discharged":false,"dischargeDate":null},{"id":"1007","name":"Period girl","admitted":"2026-09-28","discharged":false,"dischargeDate":null}],"rounds":[{"id":1,"patientId":"1001","date":"2026-09-26","type":"Night"},{"id":2,"patientId":"1002","date":"2026-09-26","type":"Night"},{"id":3,"patientId":"1003","date":"2026-09-27","type":"Morning"},{"id":4,"patientId":"1001","date":"2026-09-27","type":"Morning"},{"id":5,"patientId":"1002","date":"2026-09-27","type":"Morning"},{"id":6,"patientId":"1004","date":"2026-09-27","type":"Morning"},{"id":7,"patientId":"1003","date":"2026-09-27","type":"Night"},{"id":8,"patientId":"1001","date":"2026-09-27","type":"Night"},{"id":9,"patientId":"1002","date":"2026-09-27","type":"Night"},{"id":10,"patientId":"1004","date":"2026-09-27","type":"Night"},{"id":11,"patientId":"1005","date":"2026-09-27","type":"Night"},{"id":12,"patientId":"1003","date":"2026-09-28","type":"Morning"},{"id":13,"patientId":"1001","date":"2026-09-28","type":"Morning"},{"id":14,"patientId":"1002","date":"2026-09-28","type":"Morning"},{"id":15,"patientId":"1004","date":"2026-09-28","type":"Morning"},{"id":16,"patientId":"1005","date":"2026-09-28","type":"Morning"},{"id":17,"patientId":"1006","date":"2026-09-28","type":"Morning"},{"id":18,"patientId":"1007","date":"2026-09-28","type":"Morning"},{"id":19,"patientId":"1001","date":"2026-09-28","type":"Night"},{"id":20,"patientId":"1004","date":"2026-09-28","type":"Night"},{"id":21,"patientId":"1005","date":"2026-09-28","type":"Night"},{"id":22,"patientId":"1006","date":"2026-09-28","type":"Night"},{"id":23,"patientId":"1007","date":"2026-09-28","type":"Night"}],"current":{"type":"Night","date":"2026-09-28"},"payments":{}};
+if(!db && !localStorage.getItem('ipd_preloaded_v2')){db=PRELOADED;localStorage.setItem(KEY,JSON.stringify(db));localStorage.setItem('ipd_preloaded_v2','1');}
+if(!db) db={patients:[], rounds:[], current:{type:'Morning',date:isoToday()}, payments:{}};
+function isoToday(){return new Date().toISOString().slice(0,10)}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}
+function money(n){return '৳'+Number(n).toLocaleString('en-US')}
+function esc(s){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function prettyDate(d){return new Date(d+'T00:00:00').toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'})}
+function activePatients(){return db.patients.filter(p=>!p.discharged)}
+function showTab(t){
+['round','patients','payments'].forEach(x=>document.getElementById(x).style.display=x===t?'block':'none');
+document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',['round','patients','payments'][i]===t));
+render();
+}
+function render(){
+renderRound();renderPatients();renderPayments();
+}
+function renderRound(){
+let ps=activePatients(), c=db.current;
+let completed=db.rounds.filter(r=>r.date===c.date&&r.type===c.type).length;
+document.getElementById('round').innerHTML=`
+<div class="card">
+<div class="roundTitle"><h2>${c.type} Round</h2><span class="badge">${ps.length} active</span></div>
+<div class="date">${prettyDate(c.date)}</div>
+${ps.length?ps.map(p=>`<div class="patient"><div class="name">${esc(p.name)}<div class="mini">${p.admitted?'Admitted '+prettyDate(p.admitted):''}</div></div><button class="btn danger" onclick="discharge('${p.id}')">Discharge</button></div>`).join(''):`<div class="empty">No active patients.<br>Add a patient from the Patients tab.</div>`}
+<div class="summary" style="margin-top:14px">
+<div class="stat"><span>Patients</span><b>${ps.length}</b></div>
+<div class="stat"><span>This round</span><b>${money(ps.length*FEE)}</b></div>
+<div class="stat"><span>All rounds</span><b>${money(db.rounds.length*FEE)}</b></div>
+</div>
+<button class="btn primary big" onclick="finishRound()">${c.type==='Morning'?'✓ Finish Morning Round → Night':'✓ Finish Night Round → Next Morning'}</button>
+</div>
+<div class="card"><small><b>How it works:</b> Active patients automatically carry to the next round. Discharged patients stay in your records but disappear from future rounds.</small></div>`;
+}
+function renderPatients(){
+let ps=db.patients;
+document.getElementById('patients').innerHTML=`
+<div class="card"><form onsubmit="addPatient(event)"><input id="newName" placeholder="Patient name" autocomplete="off"><button class="btn primary" type="submit">+ Add</button></form></div>
+<div class="sectionTitle">Active Patients (${activePatients().length})</div>
+<div class="card">${activePatients().length?activePatients().map(p=>`<div class="patient"><div class="name">${esc(p.name)}<div class="mini">Admitted ${prettyDate(p.admitted)}</div></div><button class="btn danger" onclick="discharge('${p.id}')">Discharge</button></div>`).join(''):`<div class="empty">No active patients.</div>`}</div>
+<div class="sectionTitle">Discharged Patients</div>
+<div class="card">${ps.filter(p=>p.discharged).length?ps.filter(p=>p.discharged).slice().reverse().map(p=>`<div class="patient"><div class="name">${esc(p.name)}<div class="mini">Admitted ${prettyDate(p.admitted)} · Discharged ${prettyDate(p.dischargeDate)}</div></div><span class="mini">${money(db.rounds.filter(r=>r.patientId===p.id).length*FEE)}</span></div>`).join(''):`<div class="empty">None yet.</div>`}</div>`;
+}
+function renderPayments(){
+let total=db.rounds.length*FEE, paid=Object.values(db.payments).filter(Boolean).reduce((s,x)=>s+x,0);
+let due=total-paid;
+let names=[...new Set(db.rounds.map(r=>r.patientId))].map(id=>db.patients.find(p=>p.id===id)).filter(Boolean);
+document.getElementById('payments').innerHTML=`
+<div class="card"><div class="summary"><div class="stat"><span>Total earned</span><b>${money(total)}</b></div><div class="stat"><span>Paid</span><b>${money(paid)}</b></div><div class="stat"><span>Due</span><b>${money(due)}</b></div></div></div>
+<div class="sectionTitle">Patient-wise</div><div class="card">${names.length?names.map(p=>{let n=db.rounds.filter(r=>r.patientId===p.id).length, isPaid=db.payments[p.id]===n*FEE;return `<div class="paymentRow"><div><b>${esc(p.name)}</b><br><small>${n} rounds · ${money(n*FEE)}</small></div><span class="mini">${isPaid?'PAID':'UNPAID'}</span><button class="btn ${isPaid?'secondary':'success'}" onclick="togglePaid('${p.id}',${n*FEE})">${isPaid?'Undo':'Paid'}</button></div>`}).join(''):`<div class="empty">No completed rounds yet.</div>`}</div>
+<div class="card"><button class="btn secondary big" onclick="resetData()">Reset all data</button><small style="display:block;margin-top:8px">Use this only if you want to erase this device's tracker data.</small></div>`;
+}
+function addPatient(e){
+e.preventDefault();let input=document.getElementById('newName'),name=input.value.trim();if(!name)return;
+db.patients.push({id:Date.now().toString(),name,admitted:db.current.date,discharged:false,dischargeDate:null});input.value='';save();showTab('round');toast(name+' added');
+}
+function discharge(id){
+let p=db.patients.find(x=>x.id===id);if(!p)return;
+if(confirm('Discharge '+p.name+'? They will disappear from future rounds, but all previous rounds stay recorded.')){p.discharged=true;p.dischargeDate=db.current.date;save();toast(p.name+' discharged')}
+}
+function finishRound(){
+let c=db.current,ps=activePatients();
+if(!ps.length){if(!confirm('There are no active patients. Move to the next round anyway?'))return}
+let already=db.rounds.some(r=>r.date===c.date&&r.type===c.type);
+if(already){alert('This round is already recorded.');return}
+ps.forEach(p=>db.rounds.push({id:Date.now()+Math.random(),patientId:p.id,date:c.date,type:c.type}));
+if(c.type==='Morning') c.type='Night'; else {c.type='Morning';let d=new Date(c.date+'T00:00:00');d.setDate(d.getDate()+1);c.date=d.toISOString().slice(0,10)}
+save();toast('Round saved. Next round is ready.');
+}
+function togglePaid(id,amount){if(db.payments[id]) delete db.payments[id]; else db.payments[id]=amount;save()}
+function resetData(){if(confirm('Erase ALL tracker data from this iPhone? This cannot be undone.')){localStorage.removeItem(KEY);location.reload()}}
+function toast(s){let t=document.getElementById('toast');t.textContent=s;t.style.display='block';setTimeout(()=>t.style.display='none',1800)}
+render();
+</script>
+</body>
+</html>
